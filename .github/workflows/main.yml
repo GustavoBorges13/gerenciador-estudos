@@ -38,16 +38,38 @@ jobs:
             brew install poppler
           fi
 
-      - name: Get Version and Update Build Info
+      ### MUDANÇA CRÍTICA AQUI ###
+      - name: Get Version and Update Build Info (Pythonic Way)
         id: versioning
-        shell: bash
+        shell: python
         run: |
-          VERSION=${GITHUB_REF#refs/tags/v}
-          BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M Z')
-          sed -i'' "s/__version__ = .*/__version__ = \"$VERSION\"/g" _version.py
-          sed -i'' "s/__build_date__ = .*/__build_date__ = \"$BUILD_DATE\"/g" _version.py
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "app_name=GerenciadorDeEstudos" >> $GITHUB_OUTPUT
+          import os
+          import re
+          from datetime import datetime, timezone
+
+          # Extrai a versão da tag do Git
+          tag = os.environ.get('GITHUB_REF_NAME', 'v0.0.0')
+          version = tag.lstrip('v')
+
+          # Pega a data atual
+          build_date = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M Z')
+
+          # Lê o arquivo _version.py
+          with open('_version.py', 'r') as f:
+            content = f.read()
+
+          # Substitui os valores usando expressões regulares
+          content = re.sub(r"__version__ = .*", f"__version__ = \"{version}\"", content)
+          content = re.sub(r"__build_date__ = .*", f"__build_date__ = \"{build_date}\"", content)
+
+          # Escreve o conteúdo atualizado de volta no arquivo
+          with open('_version.py', 'w') as f:
+            f.write(content)
+
+          # Passa os valores para os próximos passos
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as h:
+            print(f'version={version}', file=h)
+            print('app_name=GerenciadorDeEstudos', file=h)
 
       - name: Build Executable with PyInstaller
         run: |
@@ -56,16 +78,11 @@ jobs:
       - name: Build AppImage (Linux only)
         if: runner.os == 'Linux'
         run: |
-          # Baixa a ferramenta linuxdeploy
           wget -c -nv "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
           chmod +x linuxdeploy-x86_64.AppImage
-          
-          # Desempacota o executável do PyInstaller para que o linuxdeploy possa encontrar as bibliotecas
           cd dist
           ./${{ steps.versioning.outputs.app_name }} --appimage-extract
           cd ..
-          
-          # Roda o linuxdeploy para criar o AppImage
           ./linuxdeploy-x86_64.AppImage --appdir dist/squashfs-root/ --output appimage -i icone.ico -d icone.desktop
 
       - name: Prepare Artifacts for Upload
@@ -119,6 +136,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Release v${{ steps.version.outputs.version }}
-          files: artifacts/*/* # Pega todos os arquivos de todos os subdiretórios
+          files: artifacts/*/*
           draft: false
           prerelease: false
