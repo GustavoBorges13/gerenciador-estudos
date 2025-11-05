@@ -7,6 +7,8 @@ import datetime # Para a data de atualização
 
 from pdf2image import convert_from_path
 
+from _version import __version__, __author__, __build_date__
+
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QHBoxLayout,
                                QLabel, QPushButton, QScrollArea, QInputDialog,
                                QFileDialog, QMessageBox, QMenu)
@@ -108,7 +110,7 @@ class ScrollAreaArrastavel(QScrollArea):
 class JanelaPrincipal(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle('Gerenciador de Estudos') # Removido (dialog) para um nome mais limpo
+        self.setWindowTitle('Gerenciador de Estudos (dialog)') # Removido (dialog) para um nome mais limpo
         self.resize(400,900)
         self.main_layout=QVBoxLayout(self)
         
@@ -126,7 +128,7 @@ class JanelaPrincipal(QWidget):
         self.main_layout.addWidget(self.status_bar)
 
         self.carregar_dados()
-
+        
     def carregar_dados(self):
         try:
             with open('data.json','r',encoding='utf-8') as f:self.dados=json.load(f)
