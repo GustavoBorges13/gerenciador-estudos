@@ -51,9 +51,7 @@ jobs:
             content = f.read()
             content = re.sub(r"__version__ = .*", f"__version__ = \"{version}\"", content)
             content = re.sub(r"__build_date__ = .*", f"__build_date__ = \"{build_date}\"", content)
-            f.seek(0)
-            f.write(content)
-            f.truncate()
+            f.seek(0); f.write(content); f.truncate()
           with open(os.environ['GITHUB_OUTPUT'], 'a') as h:
             print(f'version={version}', file=h)
             print('app_name=GerenciadorDeEstudos', file=h)
@@ -62,10 +60,9 @@ jobs:
         shell: bash
         run: |
           # --- MUDANÇA CRÍTICA AQUI ---
-          # Windows e macOS continuarão usando --onefile
-          # Linux usará --onedir para preparar para o AppImage
+          # Linux agora usa icone.png, os outros usam icone.ico
           if [ "${{ runner.os }}" == "Linux" ]; then
-            pyinstaller --noconfirm --onedir --windowed --name ${{ steps.versioning.outputs.app_name }} --icon=icone.ico main.py
+            pyinstaller --noconfirm --onedir --windowed --name ${{ steps.versioning.outputs.app_name }} --icon=icone.png main.py
           else
             pyinstaller --noconfirm --onefile --windowed --name ${{ steps.versioning.outputs.app_name }} --icon=icone.ico main.py
           fi
@@ -73,13 +70,12 @@ jobs:
       - name: Build AppImage (Linux only)
         if: runner.os == 'Linux'
         run: |
-          # --- MUDANÇA CRÍTICA AQUI ---
-          # O processo agora é muito mais simples e não precisa do xvfb
           wget -c -nv "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
           chmod +x linuxdeploy-x86_64.AppImage
           
-          # A mágica acontece aqui: apontamos para a pasta criada pelo PyInstaller (--onedir)
-          ./linuxdeploy-x86_64.AppImage --appdir dist/${{ steps.versioning.outputs.app_name }}/ --output appimage -i icone.ico -d icone.desktop
+          # --- MUDANÇA CRÍTICA AQUI ---
+          # Usa icone.png para o linuxdeploy
+          ./linuxdeploy-x86_64.AppImage --appdir dist/${{ steps.versioning.outputs.app_name }}/ --output appimage -i icone.png -d icone.desktop
 
       - name: Prepare Artifacts for Upload
         id: artifacts
@@ -87,24 +83,15 @@ jobs:
         run: |
           VERSION=${{ steps.versioning.outputs.version }}
           APP_NAME=${{ steps.versioning.outputs.app_name }}
-          
           if [ "${{ runner.os }}" == "Windows" ]; then
-            ARTIFACT_PATH="dist/${APP_NAME}.exe"
-            FINAL_NAME="${APP_NAME}-v${VERSION}-Windows.exe"
+            ARTIFACT_PATH="dist/${APP_NAME}.exe"; FINAL_NAME="${APP_NAME}-v${VERSION}-Windows.exe"
           elif [ "${{ runner.os }}" == "Linux" ]; then
-            # O nome do AppImage gerado não tem a arquitetura, vamos encontrá-lo
-            ARTIFACT_PATH=$(find . -name "${APP_NAME}*.AppImage" -type f)
-            FINAL_NAME="${APP_NAME}-v${VERSION}-Linux.AppImage"
+            ARTIFACT_PATH=$(find . -name "${APP_NAME}*.AppImage" -type f); FINAL_NAME="${APP_NAME}-v${VERSION}-Linux.AppImage"
           elif [ "${{ runner.os }}" == "macOS" ]; then
-            cd dist
-            zip -r "${APP_NAME}-v${VERSION}-macOS.zip" "${APP_NAME}.app"
-            cd ..
-            ARTIFACT_PATH="dist/${APP_NAME}-v${VERSION}-macOS.zip"
-            FINAL_NAME="${APP_NAME}-v${VERSION}-macOS.zip"
+            cd dist; zip -r "${APP_NAME}-v${VERSION}-macOS.zip" "${APP_NAME}.app"; cd ..
+            ARTIFACT_PATH="dist/${APP_NAME}-v${VERSION}-macOS.zip"; FINAL_NAME="${APP_NAME}-v${VERSION}-macOS.zip"
           fi
-          
-          mv "${ARTIFACT_PATH}" "${FINAL_NAME}"
-          echo "final_path=${FINAL_NAME}" >> $GITHUB_OUTPUT
+          mv "${ARTIFACT_PATH}" "${FINAL_NAME}"; echo "final_path=${FINAL_NAME}" >> $GITHUB_OUTPUT
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
