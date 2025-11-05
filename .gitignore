@@ -1,0 +1,15 @@
+# Arquivos gerados pelo usuário
+data.json
+thumbnails/
+exemplo.pdf
+
+# Arquivos de ambiente e cache do Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Arquivos do PyInstaller
+build/
+dist/
+*.spec
