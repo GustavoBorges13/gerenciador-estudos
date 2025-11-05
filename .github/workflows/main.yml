@@ -1,0 +1,125 @@
+name: Build and Release
+
+# Gatilho: A action roda sempre que uma tag no formato v* (ex: v1.0.0) for enviada.
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # Job para criar os executáveis
+  build:
+    # Estratégia de matriz: Roda o mesmo job em diferentes sistemas operacionais
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11' # Use uma versão estável
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller pyinstaller-appimage # Instala PyInstaller e o empacotador AppImage
+
+      # Passo ESSENCIAL para instalar dependências não-Python no Linux
+      - name: Install Linux dependencies (Poppler)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils desktop-file-utils libfuse2
+
+      # Passo ESSENCIAL para instalar dependências não-Python no macOS
+      - name: Install macOS dependencies (Poppler)
+        if: runner.os == 'macOS'
+        run: brew install poppler
+
+      - name: Get Version and Update Build Info
+        id: versioning
+        run: |
+          # Extrai a versão da tag do Git (ex: v1.2.3 -> 1.2.3)
+          VERSION=${GITHUB_REF#refs/tags/v}
+          # Pega a data atual no formato ISO 8601
+          BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M Z')
+          
+          # Atualiza a versão e a data de build no arquivo _version.py
+          # O 'g' no final do sed é importante para compatibilidade entre Linux e macOS
+          sed -i.bak "s/__version__ = .*/__version__ = \"$VERSION\"/g" _version.py
+          sed -i.bak "s/__build_date__ = .*/__build_date__ = \"$BUILD_DATE\"/g" _version.py
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "app_name=GerenciadorDeEstudos" >> $GITHUB_OUTPUT
+
+      - name: Build Executable with PyInstaller
+        run: |
+          pyinstaller --onefile --windowed --name ${{ steps.versioning.outputs.app_name }} main.py
+      
+      - name: Build AppImage (Linux only)
+        if: runner.os == 'Linux'
+        run: |
+          pyinstaller-appimage --onefile --windowed --name ${{ steps.versioning.outputs.app_name }} main.py
+          
+      - name: Prepare Artifacts
+        id: artifacts
+        shell: bash
+        run: |
+          VERSION=${{ steps.versioning.outputs.version }}
+          APP_NAME=${{ steps.versioning.outputs.app_name }}
+          
+          if [ "${{ runner.os }}" == "Windows" ]; then
+            ARTIFACT_NAME="${APP_NAME}-v${VERSION}-Windows.exe"
+            mv "dist/${APP_NAME}.exe" "dist/${ARTIFACT_NAME}"
+          elif [ "${{ runner.os }}" == "Linux" ]; then
+            ARTIFACT_NAME="${APP_NAME}-v${VERSION}-Linux.AppImage"
+            mv "${APP_NAME}-x86_64.AppImage" "dist/${ARTIFACT_NAME}"
+          elif [ "${{ runner.os }}" == "macOS" ]; then
+            # PyInstaller no Mac cria um .app, vamos compactá-lo em um .zip
+            ARTIFACT_NAME="${APP_NAME}-v${VERSION}-macOS.zip"
+            cd dist
+            zip -r "${ARTIFACT_NAME}" "${APP_NAME}.app"
+            cd ..
+          fi
+          
+          echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+          echo "artifact_path=dist/${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifacts.outputs.artifact_name }}
+          path: ${{ steps.artifacts.outputs.artifact_path }}
+
+  # Job para criar a Release no GitHub
+  release:
+    needs: build # Este job só roda depois que o job 'build' terminar para todos os OS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Permissão para criar releases
+      
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/ # Baixa todos os artefatos para esta pasta
+
+      - name: Get Version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release v${{ steps.version.outputs.version }}
+          files: artifacts/**/* # Pega todos os arquivos de todos os subdiretórios
+          draft: false
+          prerelease: false
