@@ -33,12 +33,7 @@ jobs:
         run: |
           if [ "${{ runner.os }}" == "Linux" ]; then
             sudo apt-get update
-            ### MUDANÇA FINAL E DEFINITIVA AQUI ###
-            # Adiciona o xvfb para criar uma tela virtual
-            sudo apt-get install -y poppler-utils desktop-file-utils libfuse2 patchelf \
-              libgl1 libegl1 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
-              libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 \
-              libxkbcommon-x11-0 libxcb-util1 libxcb-cursor0 xvfb
+            sudo apt-get install -y poppler-utils desktop-file-utils libfuse2 patchelf libgl1 libegl1 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-render-util0 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 libxkbcommon-x11-0 libxcb-util1 libxcb-cursor0 xvfb
           elif [ "${{ runner.os }}" == "macOS" ]; then
             brew install poppler
           fi
@@ -47,35 +42,44 @@ jobs:
         id: versioning
         shell: python
         run: |
-          import os
-          import re
+          import os, re
           from datetime import datetime, timezone
           tag = os.environ.get('GITHUB_REF_NAME', 'v0.0.0')
           version = tag.lstrip('v')
           build_date = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M Z')
-          with open('_version.py', 'r') as f: content = f.read()
-          content = re.sub(r"__version__ = .*", f"__version__ = \"{version}\"", content)
-          content = re.sub(r"__build_date__ = .*", f"__build_date__ = \"{build_date}\"", content)
-          with open('_version.py', 'w') as f: f.write(content)
+          with open('_version.py', 'r+') as f:
+            content = f.read()
+            content = re.sub(r"__version__ = .*", f"__version__ = \"{version}\"", content)
+            content = re.sub(r"__build_date__ = .*", f"__build_date__ = \"{build_date}\"", content)
+            f.seek(0)
+            f.write(content)
+            f.truncate()
           with open(os.environ['GITHUB_OUTPUT'], 'a') as h:
             print(f'version={version}', file=h)
             print('app_name=GerenciadorDeEstudos', file=h)
 
       - name: Build Executable with PyInstaller
+        shell: bash
         run: |
-          pyinstaller --noconfirm --onefile --windowed --name ${{ steps.versioning.outputs.app_name }} --icon=icone.ico main.py
+          # --- MUDANÇA CRÍTICA AQUI ---
+          # Windows e macOS continuarão usando --onefile
+          # Linux usará --onedir para preparar para o AppImage
+          if [ "${{ runner.os }}" == "Linux" ]; then
+            pyinstaller --noconfirm --onedir --windowed --name ${{ steps.versioning.outputs.app_name }} --icon=icone.ico main.py
+          else
+            pyinstaller --noconfirm --onefile --windowed --name ${{ steps.versioning.outputs.app_name }} --icon=icone.ico main.py
+          fi
       
       - name: Build AppImage (Linux only)
         if: runner.os == 'Linux'
         run: |
+          # --- MUDANÇA CRÍTICA AQUI ---
+          # O processo agora é muito mais simples e não precisa do xvfb
           wget -c -nv "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
           chmod +x linuxdeploy-x86_64.AppImage
-          cd dist
-          ### MUDANÇA CRÍTICA AQUI ###
-          # Roda o comando de extração DENTRO da tela virtual do xvfb
-          xvfb-run --auto-servernum ./${{ steps.versioning.outputs.app_name }} --appimage-extract
-          cd ..
-          ./linuxdeploy-x86_64.AppImage --appdir dist/squashfs-root/ --output appimage -i icone.ico -d icone.desktop
+          
+          # A mágica acontece aqui: apontamos para a pasta criada pelo PyInstaller (--onedir)
+          ./linuxdeploy-x86_64.AppImage --appdir dist/${{ steps.versioning.outputs.app_name }}/ --output appimage -i icone.ico -d icone.desktop
 
       - name: Prepare Artifacts for Upload
         id: artifacts
@@ -88,7 +92,8 @@ jobs:
             ARTIFACT_PATH="dist/${APP_NAME}.exe"
             FINAL_NAME="${APP_NAME}-v${VERSION}-Windows.exe"
           elif [ "${{ runner.os }}" == "Linux" ]; then
-            ARTIFACT_PATH="${APP_NAME}-x86_64.AppImage"
+            # O nome do AppImage gerado não tem a arquitetura, vamos encontrá-lo
+            ARTIFACT_PATH=$(find . -name "${APP_NAME}*.AppImage" -type f)
             FINAL_NAME="${APP_NAME}-v${VERSION}-Linux.AppImage"
           elif [ "${{ runner.os }}" == "macOS" ]; then
             cd dist
