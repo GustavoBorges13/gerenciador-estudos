@@ -26,7 +26,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          # CORREÇÃO: Usando a biblioteca correta para AppImage
+          # --- ESTA É A LINHA CORRIGIDA ---
           if [[ "${{ runner.os }}" == "Linux" ]]; then
             pip install pyinstaller pyappimage
           else
@@ -45,15 +45,12 @@ jobs:
 
       - name: Get Version and Update Build Info
         id: versioning
-        shell: bash # Usar bash em todos os OS para consistência
+        shell: bash
         run: |
           VERSION=${GITHUB_REF#refs/tags/v}
           BUILD_DATE=$(date -u +'%Y-%m-%d %H:%M Z')
-          
-          # sed -i funciona de forma diferente no macOS. A versão -i '' é mais portável.
           sed -i'' "s/__version__ = .*/__version__ = \"$VERSION\"/g" _version.py
           sed -i'' "s/__build_date__ = .*/__build_date__ = \"$BUILD_DATE\"/g" _version.py
-          
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "app_name=GerenciadorDeEstudos" >> $GITHUB_OUTPUT
 
@@ -67,7 +64,6 @@ jobs:
         run: |
           VERSION=${{ steps.versioning.outputs.version }}
           APP_NAME=${{ steps.versioning.outputs.app_name }}
-          
           if [ "${{ runner.os }}" == "Windows" ]; then
             ARTIFACT_NAME="${APP_NAME}-v${VERSION}-Windows.exe"
             mv "dist/${APP_NAME}.exe" "dist/${ARTIFACT_NAME}"
@@ -75,8 +71,9 @@ jobs:
           elif [ "${{ runner.os }}" == "Linux" ]; then
             # pyappimage cria o AppImage no diretório dist/
             ARTIFACT_NAME="${APP_NAME}-v${VERSION}-Linux.AppImage"
-            echo "artifact_path=dist/${APP_NAME}-x86_64.AppImage" >> $GITHUB_OUTPUT
-            echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
+            # O nome do arquivo gerado pelo PyInstaller é baseado no nome do script
+            mv "dist/${APP_NAME}-x86_64.AppImage" "dist/${ARTIFACT_NAME}"
+            echo "artifact_path=dist/${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
           elif [ "${{ runner.os }}" == "macOS" ]; then
             ARTIFACT_NAME="${APP_NAME}-v${VERSION}-macOS.zip"
             cd dist
@@ -84,18 +81,13 @@ jobs:
             cd ..
             echo "artifact_path=dist/${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
           fi
-          
           echo "artifact_name=${ARTIFACT_NAME}" >> $GITHUB_OUTPUT
-
-      - name: Rename Linux AppImage
-        if: runner.os == 'Linux'
-        run: mv ${{ steps.artifacts.outputs.artifact_path }} dist/${{ steps.artifacts.outputs.artifact_name }}
-
+      
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.artifacts.outputs.artifact_name }}
-          path: dist/${{ steps.artifacts.outputs.artifact_name }}
+          path: ${{ steps.artifacts.outputs.artifact_path }}
 
   release:
     needs: build
@@ -118,7 +110,6 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Release v${{ steps.version.outputs.version }}
-          # O padrão é pegar todos os arquivos, mas vamos ser explícitos
           files: artifacts/**/*/*
           draft: false
           prerelease: false
