@@ -60,7 +60,7 @@ jobs:
 
       # Passo 5: Rodar o PyInstaller para criar o executável
       - name: Run PyInstaller
-        shell: bash # Usar bash em todos os SOs para consistência
+        shell: bash
         run: |
           # --- ETAPA DE DEBUG ---
           echo "--- Iniciando Debug da Estrutura de Arquivos ---"
@@ -69,24 +69,32 @@ jobs:
           ls -R
           echo "--- Fim do Debug ---"
 
-          # Define o ícone a ser usado com base no sistema operacional, USANDO CAMINHOS ABSOLUTOS
-          if [ "$RUNNER_OS" == "macOS" ]; then
-            # GITHUB_WORKSPACE é o caminho absoluto para a raiz do projeto
-            ICON_PATH="${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets/icone.icns"
-          else
-            ICON_PATH="${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets/icone.ico"
+          # --- CONSTRUÇÃO DE CAMINHOS MULTIPLATAFORMA ---
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            # No Windows, usamos ; como separador e caminhos com \
+            ICON_PATH="src\\gerenciador_estudos\\assets\\icone.ico"
+            ADD_DATA_PATH="src\\gerenciador_estudos\\assets;assets"
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            # No macOS, usamos : como separador e caminhos com /
+            ICON_PATH="src/gerenciador_estudos/assets/icone.icns"
+            ADD_DATA_PATH="src/gerenciador_estudos/assets:assets"
+          else # Linux
+            # No Linux, usamos : como separador e caminhos com /
+            ICON_PATH="src/gerenciador_estudos/assets/icone.ico"
+            ADD_DATA_PATH="src/gerenciador_estudos/assets:assets"
           fi
           
           echo "Caminho do ícone definido como: $ICON_PATH"
+          echo "Caminho de dados definido como: $ADD_DATA_PATH"
 
-          # Roda o PyInstaller com --onedir e o caminho absoluto do ícone
+          # Roda o PyInstaller com caminhos e separadores corretos para cada SO
           pyinstaller src/gerenciador_estudos/__main__.py \
             --name "GerenciadorDeEstudos" \
             --noconfirm \
             --onedir \
             --windowed \
             --icon "$ICON_PATH" \
-            --add-data "${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets:assets"
+            --add-data "$ADD_DATA_PATH"
 
       # Passo 6: Criar o AppImage (permanece o mesmo)
       - name: Create AppImage
