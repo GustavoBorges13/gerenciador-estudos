@@ -41,7 +41,7 @@ jobs:
           wget -c "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage" -O linuxdeploy-plugin-qt
           chmod +x linuxdeploy linuxdeploy-plugin-qt
 
-      # 5. Gerar e Modificar o Arquivo .spec (A ESTRATÉGIA DEFINITIVA)
+      # Passo 5: Gerar e Modificar o Arquivo .spec
       - name: Generate and Patch .spec file
         shell: bash
         run: |
@@ -55,26 +55,29 @@ jobs:
           # Gera um arquivo .spec básico
           pyi-makespec --name "GerenciadorDeEstudos" --onedir --windowed src/gerenciador_estudos/__main__.py
 
-          # --- MODIFICAÇÃO DO .SPEC ---
-          # Esta é a parte crucial. Editamos o .spec para adicionar os dados e o ícone
-          # com caminhos absolutos, de uma forma que o PyInstaller entende.
+          # --- MODIFICAÇÃO DO .SPEC (COM SINTAXE 'SED' CORRIGIDA) ---
           
           # No macOS e Linux
           if [ "$RUNNER_OS" != "Windows" ]; then
-            # Adiciona a lista de 'datas' (arquivos adicionais)
-            sed -i.bak "s/datas=\\[\\]/datas=\\[('${GITHUB_WORKSPACE//\//\\/}\\/src\\/gerenciador_estudos\\/assets', 'assets')\\]/" GerenciadorDeEstudos.spec
+            # Usa '#' como delimitador para evitar conflito com as barras '/' do caminho
+            DATAS_TUPLE="datas=[('${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets', 'assets')]"
+            sed -i.bak "s#datas=\\[\\]#${DATAS_TUPLE}#" GerenciadorDeEstudos.spec
+            
             # Adiciona o ícone ao BUNDLE (apenas no macOS)
             if [ "$RUNNER_OS" == "macOS" ]; then
-              sed -i.bak "s/bundle_identifier=None/bundle_identifier=None, icon='$ICON_PATH'/" GerenciadorDeEstudos.spec
+              sed -i.bak "s#bundle_identifier=None#bundle_identifier=None, icon='${ICON_PATH}'#" GerenciadorDeEstudos.spec
             fi
           fi
           
-          # No Windows (a sintaxe de sed é um pouco diferente)
+          # No Windows (a sintaxe original já deve funcionar, mas podemos padronizar)
           if [ "$RUNNER_OS" == "Windows" ]; then
-            # Adiciona a lista de 'datas'
-            sed -i "s/datas=\\[\\]/datas=\\[('${GITHUB_WORKSPACE//\//\\\\}\\\\src\\\\gerenciador_estudos\\\\assets', 'assets')\\]/" GerenciadorDeEstudos.spec
+            # Escapa as barras invertidas para o 'sed' e usa '#'
+            DATAS_TUPLE_WIN="datas=[('${GITHUB_WORKSPACE//\//\\\\\\\\}\\\\src\\\\gerenciador_estudos\\\\assets', 'assets')]"
+            sed -i "s#datas=\\[\\]#${DATAS_TUPLE_WIN}#" GerenciadorDeEstudos.spec
+            
             # Adiciona o ícone ao EXE
-            sed -i "s/console=False/console=False, icon='$ICON_PATH'/" GerenciadorDeEstudos.spec
+            ICON_PATH_WIN="${GITHUB_WORKSPACE//\//\\\\}\\\\src\\\\gerenciador_estudos\\\\assets\\\\icone.ico"
+            sed -i "s#console=False#console=False, icon='${ICON_PATH_WIN}'#" GerenciadorDeEstudos.spec
           fi
 
           echo "--- Conteúdo do .spec modificado ---"
