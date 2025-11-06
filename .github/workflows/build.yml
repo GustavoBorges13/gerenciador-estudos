@@ -100,39 +100,4 @@ jobs:
           # Nome que o arquivo terá na página da Release
           asset_name: ${{ env.ASSET_PATH }}
           # Tipo do conteúdo
-          asset_content_type: application/octet-stream```
-
----
-
-### Passo 2: Como Usar este Workflow
-
-1.  **Commit e Push:** Adicione a pasta `.github` com o arquivo `build.yml` ao seu repositório e faça o push para o GitHub.
-    ```bash
-    git add .github/
-    git commit -m "feat: Add GitHub Actions workflow for automated builds"
-    git push
-    ```
-
-2.  **Crie uma Nova Release no GitHub:**
-    A automação agora está pronta, esperando pelo gatilho. Para acioná-la:
-    *   Vá para a página principal do seu repositório no GitHub.
-    *   Clique em **"Releases"** na barra lateral direita.
-    *   Clique em **"Draft a new release"**.
-    *   Clique em **"Choose a tag"**, digite um novo número de versão (ex: `v1.0.0`) e clique em **"Create new tag"**.
-    *   Dê um título para a sua release (ex: "Versão 1.0.0 - Lançamento Inicial").
-    *   Escreva uma breve descrição das novidades.
-    *   Clique em **"Publish release"**.
-
-3.  **A Mágica Acontece:**
-    *   Assim que você publicar a release, vá para a aba **"Actions"** no seu repositório.
-    *   Você verá seu workflow "Build Application" rodando. Se clicar nele, verá os três jobs (Windows, macOS, Linux) executando em paralelo.
-    *   Aguarde alguns minutos. Quando todos os jobs terminarem com sucesso (ficarem verdes), volte para a página da sua release.
-    *   Os três arquivos (`.exe`, `.zip`, `.AppImage`) estarão anexados na seção **"Assets"**, prontos para serem baixados!
-
-### Notas Importantes
-
-*   **Ícone do macOS:** O PyInstaller no macOS prefere um ícone no formato `.icns`. Você pode converter seu `.ico` para `.icns` usando uma ferramenta online e adicioná-lo à pasta `assets`. Depois, você pode adicionar uma lógica `if` no passo do PyInstaller para usar o ícone correto em cada SO.
-*   **Primeira Execução:** A primeira vez que o workflow rodar pode demorar um pouco mais, pois o GitHub Actions precisa baixar e armazenar em cache algumas dependências.
-*   **Code Signing:** Para uma distribuição ainda mais profissional, especialmente no Windows e macOS, o próximo passo seria "assinar" seus executáveis com um certificado de desenvolvedor. Isso é um processo mais complexo, mas evita que os usuários vejam avisos de segurança ao rodar seu programa.
-
-Parabéns! Com este workflow, você alcançou um nível de automação e profissionalismo que a grande maioria dos projetos nunca atinge.
+          asset_content_type: application/octet-stream
