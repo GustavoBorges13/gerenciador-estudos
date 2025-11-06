@@ -40,17 +40,26 @@ jobs:
           pip install pyinstaller
 
       - name: Build executable with PyInstaller
+        shell: bash
         run: |
-          if ($env:RUNNER_OS -eq "Windows") {
-            pyinstaller src/gerenciador_estudos/__main__.py --name gerenciador_estudos.exe --onefile --noconsole --icon src/assets/icone.ico
-          }
-          elseif ($env:RUNNER_OS -eq "macOS") {
-            pyinstaller src/gerenciador_estudos/__main__.py --name gerenciador_estudos --onefile --noconsole --icon src/assets/icone.icns
-          }
-          else {
-            pyinstaller src/gerenciador_estudos/__main__.py --name gerenciador_estudos --onefile --noconsole
-          }
-
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pyinstaller src/gerenciador_estudos/__main__.py \
+              --name gerenciador_estudos.exe \
+              --onefile \
+              --noconsole \
+              --icon src/assets/icone.ico
+          elif [[ "$RUNNER_OS" == "macOS" ]]; then
+            pyinstaller src/gerenciador_estudos/__main__.py \
+              --name gerenciador_estudos \
+              --onefile \
+              --noconsole \
+              --icon src/assets/icone.icns
+          else
+            pyinstaller src/gerenciador_estudos/__main__.py \
+              --name gerenciador_estudos \
+              --onefile \
+              --noconsole
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
