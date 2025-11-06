@@ -1,10 +1,14 @@
 # Nome do nosso workflow de automação
 name: Build Application
 
-# Gatilho: Este workflow irá rodar toda vez que uma nova "Release" for publicada no GitHub.
+# Gatilhos:
 on:
+  # 1. Aciona quando uma nova "Release" for publicada (para seus lançamentos oficiais)
   release:
     types: [published]
+  
+  # 2. Permite acionar manualmente a qualquer momento (para testes)
+  workflow_dispatch: {}
 
 jobs:
   build:
