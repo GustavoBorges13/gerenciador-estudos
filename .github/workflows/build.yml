@@ -84,6 +84,13 @@ jobs:
           pip install -e .
           pip install pyinstaller pillow
 
+      - name: Check icon path
+        run: |
+          if [ ! -f "src/assets/icone.ico" ]; then
+            echo "❌ Erro: ícone não encontrado em src/assets/icone.ico"
+            exit 1
+          fi
+
       - name: Build executable with PyInstaller
         shell: bash
         run: |
@@ -91,7 +98,7 @@ jobs:
             --name ${{ matrix.exe_name }} \
             --onefile \
             --noconsole \
-            --add-data "src/gerenciador_estudos/assets/icone.ico:assets" \
+            --add-data "src/assets/icone.ico:assets" \
             --icon src/assets/icone.ico
 
       - name: Upload artifact
