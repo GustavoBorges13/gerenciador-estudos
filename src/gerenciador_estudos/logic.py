@@ -9,7 +9,7 @@ from pathlib import Path
 import fitz
 from PySide6.QtWidgets import QMessageBox
 
-from .config import debug_log, PDF_DIR, THUMB_DIR, APP_DATA_DIR, CACHE_DIR # 
+from gerenciador_estudos.config import debug_log, PDF_DIR, THUMB_DIR, APP_DATA_DIR, CACHE_DIR # 
 
 def setup_directories():
     """Garante que todos os diretórios necessários existam."""

@@ -7,9 +7,9 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 # As importações agora são relativas ao pacote
-from .config import DEBUG_MODE
-from .logic import setup_directories
-from .widgets import JanelaPrincipal
+from gerenciador_estudos.config import DEBUG_MODE
+from gerenciador_estudos.logic import setup_directories
+from gerenciador_estudos.widgets import JanelaPrincipal
 
 def setup_qt_environment():
     """

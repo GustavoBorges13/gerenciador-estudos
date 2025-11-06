@@ -13,8 +13,8 @@ from PySide6.QtCore import (QSize, Qt, QEvent, QPoint, QPropertyAnimation, QEasi
                             QAbstractAnimation, QThread, Signal)
 
 # Importações dos nossos módulos
-from .config import (STATUS_CONFIG, JSON_PATH, THUMB_DIR, PDF_DIR, debug_log)
-from .logic import (get_stable_hash, gerar_thumbnail, abrir_pdf_na_pagina)
+from gerenciador_estudos.config import (STATUS_CONFIG, JSON_PATH, THUMB_DIR, PDF_DIR, debug_log)
+from gerenciador_estudos.logic import (get_stable_hash, gerar_thumbnail, abrir_pdf_na_pagina)
 
 
 # --- WORKER PARA THREADING ---
