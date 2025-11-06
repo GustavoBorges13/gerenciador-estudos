@@ -138,6 +138,26 @@ jobs:
         with:
           path: artifacts
 
+      # ✨ PASSO CHAVE: Renomeia os arquivos para garantir nomes únicos ✨
+      - name: Rename artifacts for uniqueness
+        run: |
+          echo "Renaming assets to avoid duplicates..."
+          for dir in artifacts/*/; do
+            artifact_name=$(basename "$dir") # Pega o nome da pasta, ex: "gerenciador_estudos-linux"
+            file_path=$(find "$dir" -type f)
+            filename=$(basename "$file_path")
+            
+            # Se o nome do arquivo for o genérico "gerenciador_estudos", renomeia
+            if [ "$filename" == "gerenciador_estudos" ]; then
+              new_path="${dir}${artifact_name}" # Constrói o novo caminho: artifacts/gerenciador_estudos-linux/gerenciador_estudos-linux
+              echo "Renaming '$file_path' to '$new_path'"
+              mv "$file_path" "$new_path"
+            fi
+          done
+          echo "------------------------------------"
+          echo "Final file structure for upload:"
+          ls -lR artifacts
+
       - name: Generate release notes with hashes
         id: generate_notes
         run: |
@@ -145,8 +165,8 @@ jobs:
           echo "" >> release_notes.md
           echo "| Arquivo | SHA256 Hash |" >> release_notes.md
           echo "|---------|-------------|" >> release_notes.md
-          for dir in artifacts/*/; do
-            file=$(find "$dir" -type f)
+          # Agora o find vai pegar os arquivos com os nomes novos e únicos
+          for file in $(find artifacts -type f); do
             filename=$(basename "$file")
             hash=$(sha256sum "$file" | awk '{print $1}')
             echo "| \`$filename\` | \`$hash\` |" >> release_notes.md
@@ -160,11 +180,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check.outputs.version }}
         run: |
-          echo "🚀 Criando nova release v$VERSION..."
+          echo "🚀 Creating new release v$VERSION..."
           gh release create "v$VERSION" \
             --title "Release v$VERSION" \
             --notes-file release_notes.md \
             --generate-notes
           
-          echo "📦 Uploading files to release v$VERSION..."
+          echo "📦 Uploading unique assets to release v$VERSION..."
           gh release upload "v$VERSION" $(find artifacts -type f) --clobber
