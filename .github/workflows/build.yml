@@ -93,6 +93,16 @@ jobs:
             exit 1
           fi
 
+      # ✨ NOVO PASSO DE VERIFICAÇÃO ✨
+      - name: Verify file structure
+        run: |
+          echo "O diretório de trabalho atual é:"
+          pwd
+          echo "--------------------------------------------------"
+          echo "Listando a estrutura de arquivos a partir da raiz:"
+          ls -lR
+          echo "--------------------------------------------------"
+
       - name: Build executable with PyInstaller
         shell: bash
         run: |
@@ -158,9 +168,15 @@ jobs:
           ls -lR artifacts
 
           # O comando 'find' é mais robusto para pegar todos os arquivos
-          gh release create "v$VERSION" \
-            --title "Release v$VERSION" \
-            --notes-file release_notes.md \
-            --generate-notes \
-            $(find artifacts -type f)
-            
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "🔁 Release v$VERSION já existe. Atualizando arquivos..."
+            gh release upload "v$VERSION" $(find artifacts -type f) --clobber
+          else
+            echo "🚀 Criando nova release v$VERSION..."
+            gh release create "v$VERSION" \
+              --title "Release v$VERSION" \
+              --notes-file release_notes.md \
+              --generate-notes \
+              $(find artifacts -type f)
+          fi
+
