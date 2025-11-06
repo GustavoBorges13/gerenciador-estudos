@@ -128,11 +128,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ✅ Este checkout é suficiente. Ele prepara o ambiente.
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Necessário para o gh release --generate-notes
+          fetch-depth: 0
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -142,7 +141,6 @@ jobs:
       - name: Generate release notes with hashes
         id: generate_notes
         run: |
-          # (seu script de geração de notas continua igual)
           echo "## Artefatos da Compilação" > release_notes.md
           echo "" >> release_notes.md
           echo "| Arquivo | SHA256 Hash |" >> release_notes.md
@@ -157,27 +155,16 @@ jobs:
           echo "Release notes geradas:"
           cat release_notes.md
 
-      # ❌ REMOVA O CHECKOUT QUE ESTAVA AQUI ❌
-
       - name: Create Release and Upload Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check.outputs.version }}
         run: |
+          echo "🚀 Criando nova release v$VERSION..."
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes-file release_notes.md \
+            --generate-notes
+          
           echo "📦 Uploading files to release v$VERSION..."
-          # Lista os arquivos para ter certeza que eles existem
-          ls -lR artifacts
-
-          # O comando 'find' é mais robusto para pegar todos os arquivos
-          if gh release view "v$VERSION" >/dev/null 2>&1; then
-            echo "🔁 Release v$VERSION já existe. Atualizando arquivos..."
-            gh release upload "v$VERSION" $(find artifacts -type f) --clobber
-          else
-            echo "🚀 Criando nova release v$VERSION..."
-            gh release create "v$VERSION" \
-              --title "Release v$VERSION" \
-              --notes-file release_notes.md \
-              --generate-notes \
-              $(find artifacts -type f)
-          fi
-
+          gh release upload "v$VERSION" $(find artifacts -type f) --clobber
