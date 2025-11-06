@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+src/gerenciador_de_estudos.egg-info/PKG-INFO
+src/gerenciador_de_estudos.egg-info/SOURCES.txt
+src/gerenciador_de_estudos.egg-info/dependency_links.txt
+src/gerenciador_de_estudos.egg-info/entry_points.txt
+src/gerenciador_de_estudos.egg-info/requires.txt
+src/gerenciador_de_estudos.egg-info/top_level.txt
+src/gerenciador_estudos/__init__.py
+src/gerenciador_estudos/__main__.py
+src/gerenciador_estudos/config.py
+src/gerenciador_estudos/logic.py
+src/gerenciador_estudos/widgets.py

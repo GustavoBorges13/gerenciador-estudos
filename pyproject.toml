@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gerenciador-de-estudos"
+version = "1.0.0"
+authors = [
+  { name="Gustavo Silva", email="ggustavo.borges13@gmail.com" },
+]
+description = "Um gerenciador de estudos e PDFs com interface gráfica."
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "PySide6",
+    "PyMuPDF",
+]
+
+[project.gui-scripts]
+# Esta linha cria o comando para iniciar seu programa
+gerenciador-estudos = "gerenciador_estudos.__main__:main"

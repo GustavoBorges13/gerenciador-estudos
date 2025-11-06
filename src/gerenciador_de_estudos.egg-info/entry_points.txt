@@ -1,0 +1,2 @@
+[gui_scripts]
+gerenciador-estudos = gerenciador_estudos.__main__:main

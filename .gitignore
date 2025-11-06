@@ -1,15 +1,18 @@
-# Arquivos gerados pelo usuário
-data.json
-thumbnails/
-exemplo.pdf
+# Ambientes virtuais
+/venv/
+/.venv/
+/env/
+/.env/
 
-# Arquivos de ambiente e cache do Python
+# Cache do Python
 __pycache__/
 *.pyc
-venv/
-.venv/
+*.pyo
+*.pyd
 
-# Arquivos do PyInstaller
-build/
-dist/
-*.spec
+# Arquivos de IDEs
+.vscode/
+.idea/
+
+# Dados gerados pela aplicação (se usar o fallback)
+/estudos_data/
