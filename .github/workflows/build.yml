@@ -107,12 +107,21 @@ jobs:
       - name: Build executable with PyInstaller
         shell: bash
         run: |
+          # Adiciona o plugin Kvantum se estivermos no Linux e o arquivo existir
+          KVANTUM_FLAG=""
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ] && [ -f "/usr/lib/qt6/plugins/styles/libkvantum.so" ]; then
+            echo "Kvantum plugin found. Bundling it."
+            # A sintaxe para --add-binary no Linux é com ':'
+            KVANTUM_FLAG="--add-binary /usr/lib/qt6/plugins/styles/libkvantum.so:plugins/styles"
+          fi
+
           pyinstaller src/gerenciador_estudos/__main__.py \
             --name ${{ matrix.exe_name }} \
             --onefile \
             --noconsole \
             --add-data "src/assets/icone.ico:assets" \
-            --icon src/assets/icone.ico
+            --icon src/assets/icone.ico \
+            $KVANTUM_FLAG
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
