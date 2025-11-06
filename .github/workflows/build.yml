@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 3. Instalar dependências do projeto e do build
+      # 3. Instalar dependências
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -41,39 +41,51 @@ jobs:
           wget -c "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage" -O linuxdeploy-plugin-qt
           chmod +x linuxdeploy linuxdeploy-plugin-qt
 
-      # 5. Rodar o PyInstaller (Estratégia Robusta)
-      - name: Run PyInstaller
+      # 5. Gerar e Modificar o Arquivo .spec (A ESTRATÉGIA DEFINITIVA)
+      - name: Generate and Patch .spec file
         shell: bash
         run: |
           # Define o caminho do ícone com base no SO
           if [ "$RUNNER_OS" == "macOS" ]; then
-            ICON="gerenciador_estudos/assets/icone.icns"
+            ICON_PATH="${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets/icone.icns"
           else
-            ICON="gerenciador_estudos/assets/icone.ico"
+            ICON_PATH="${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets/icone.ico"
           fi
+          
+          # Gera um arquivo .spec básico
+          pyi-makespec --name "GerenciadorDeEstudos" --onedir --windowed src/gerenciador_estudos/__main__.py
 
-          # Define o separador para --add-data com base no SO
+          # --- MODIFICAÇÃO DO .SPEC ---
+          # Esta é a parte crucial. Editamos o .spec para adicionar os dados e o ícone
+          # com caminhos absolutos, de uma forma que o PyInstaller entende.
+          
+          # No macOS e Linux
+          if [ "$RUNNER_OS" != "Windows" ]; then
+            # Adiciona a lista de 'datas' (arquivos adicionais)
+            sed -i.bak "s/datas=\\[\\]/datas=\\[('${GITHUB_WORKSPACE//\//\\/}\\/src\\/gerenciador_estudos\\/assets', 'assets')\\]/" GerenciadorDeEstudos.spec
+            # Adiciona o ícone ao BUNDLE (apenas no macOS)
+            if [ "$RUNNER_OS" == "macOS" ]; then
+              sed -i.bak "s/bundle_identifier=None/bundle_identifier=None, icon='$ICON_PATH'/" GerenciadorDeEstudos.spec
+            fi
+          fi
+          
+          # No Windows (a sintaxe de sed é um pouco diferente)
           if [ "$RUNNER_OS" == "Windows" ]; then
-            SEPARATOR=";"
-          else
-            SEPARATOR=":"
+            # Adiciona a lista de 'datas'
+            sed -i "s/datas=\\[\\]/datas=\\[('${GITHUB_WORKSPACE//\//\\\\}\\\\src\\\\gerenciador_estudos\\\\assets', 'assets')\\]/" GerenciadorDeEstudos.spec
+            # Adiciona o ícone ao EXE
+            sed -i "s/console=False/console=False, icon='$ICON_PATH'/" GerenciadorDeEstudos.spec
           fi
 
-          # Muda para o diretório 'src' para simplificar os caminhos
-          cd src
+          echo "--- Conteúdo do .spec modificado ---"
+          cat GerenciadorDeEstudos.spec
+          echo "--- Fim do .spec ---"
 
-          # Executa o PyInstaller com caminhos relativos curtos e saída direcionada
-          pyinstaller gerenciador_estudos/__main__.py \
-            --name "GerenciadorDeEstudos" \
-            --distpath ../dist \
-            --workpath ../build \
-            --noconfirm \
-            --onedir \
-            --windowed \
-            --icon "$ICON" \
-            --add-data "gerenciador_estudos/assets${SEPARATOR}assets"
+      # 6. Rodar o PyInstaller usando o .spec modificado
+      - name: Run PyInstaller with .spec file
+        run: pyinstaller --noconfirm GerenciadorDeEstudos.spec
 
-      # 6. (Apenas Linux) Criar o AppImage
+      # 7. (Apenas Linux) Criar o AppImage
       - name: Create AppImage
         if: runner.os == 'Linux'
         run: |
@@ -81,8 +93,9 @@ jobs:
             --plugin qt \
             --output appimage
 
-      # 7. Preparar os artefatos para upload (zipando os diretórios)
+      # 8. Preparar os artefatos
       - name: Prepare artifacts
+        # ... (esta etapa não precisa de alterações) ...
         shell: bash
         run: |
           ARTIFACT_NAME=${{ github.event.repository.name }}-${{ github.ref_name }}
@@ -97,8 +110,9 @@ jobs:
             echo "ASSET_PATH=${ARTIFACT_NAME}-linux.AppImage" >> $GITHUB_ENV
           fi
 
-      # 8. Fazer o upload do artefato final para a Release
+      # 9. Fazer o upload
       - name: Upload Release Asset
+        # ... (esta etapa não precisa de alterações) ...
         uses: actions/upload-release-asset@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
