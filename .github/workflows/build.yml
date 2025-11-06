@@ -146,14 +146,21 @@ jobs:
           echo "Release notes geradas:"
           cat release_notes.md
 
+      - name: Checkout repository (para o gh funcionar)
+        uses: actions/checkout@v4
+
       - name: Create Release and Upload Assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VERSION: ${{ needs.check.outputs.version }}
         run: |
+          echo "📦 Uploading files to release v$VERSION..."
+          ls -lh artifacts/*/*
+
           gh release create "v$VERSION" \
-            --repo ${{ github.repository }} \
+            --repo GustavoBorges13/gerenciador-estudos \
             --title "Release v$VERSION" \
             --notes-file release_notes.md \
             --generate-notes \
-            artifacts/*/*
+            $(find artifacts -type f)
+
