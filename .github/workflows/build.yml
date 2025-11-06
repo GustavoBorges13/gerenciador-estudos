@@ -17,15 +17,12 @@ jobs:
           - os: ubuntu-latest
             artifact_name: gerenciador_estudos-linux
             exe_suffix: ""
-            icon: src/assets/icone.ico
           - os: windows-latest
             artifact_name: gerenciador_estudos-win
             exe_suffix: ".exe"
-            icon: src/assets/icone.ico
           - os: macos-latest
             artifact_name: gerenciador_estudos-macos
             exe_suffix: ""
-            icon: src/assets/icone.icns
 
     steps:
       - name: Checkout repository
@@ -39,8 +36,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e .  # instala o pacote local (lê pyproject.toml)
-          pip install pyinstaller
+          pip install -e .
+          pip install pyinstaller pillow  # 👈 Pillow converte o ícone automaticamente
 
       - name: Build executable with PyInstaller
         shell: bash
@@ -49,7 +46,7 @@ jobs:
             --name gerenciador_estudos${{ matrix.exe_suffix }} \
             --onefile \
             --noconsole \
-            --icon src/assets/icone.ico
+            --icon src/assets/icone.ico  # usa o mesmo ícone pra todos
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
