@@ -63,37 +63,39 @@ jobs:
         shell: bash
         run: |
           # --- ETAPA DE DEBUG ---
-          echo "--- Iniciando Debug da Estrutura de Arquivos ---"
-          echo "Diretório de trabalho atual: $(pwd)"
-          echo "Conteúdo do diretório de trabalho:"
+          echo "--- Debug Inicial ---"
+          echo "Diretório de trabalho inicial: $(pwd)"
           ls -R
+          
+          # --- MUDANÇA DE ESTRATÉGIA: MUDAR PARA O DIRETÓRIO 'SRC' ---
+          echo ">>> Mudando diretório de trabalho para ./src <<<"
+          cd src
+          echo "Novo diretório de trabalho: $(pwd)"
           echo "--- Fim do Debug ---"
 
-          # --- CONSTRUÇÃO DE CAMINHOS ABSOLUTOS E ROBUSTOS ---
-          # GITHUB_WORKSPACE sempre fornece o caminho absoluto para a raiz do projeto.
-          
-          # 1. Define o caminho absoluto para o ícone
+          # --- CONSTRUÇÃO DE CAMINHOS RELATIVOS A 'SRC' ---
           if [ "$RUNNER_OS" == "macOS" ]; then
-            ICON_PATH="${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets/icone.icns"
+            ICON_PATH="gerenciador_estudos/assets/icone.icns"
           else
-            ICON_PATH="${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets/icone.ico"
+            ICON_PATH="gerenciador_estudos/assets/icone.ico"
           fi
           
-          # 2. Define o caminho absoluto para os dados e o separador correto
           if [ "$RUNNER_OS" == "Windows" ]; then
-            # No Windows, usamos ; como separador
-            ADD_DATA_PATH="${GITHUB_WORKSPACE}\\src\\gerenciador_estudos\\assets;assets"
+            ADD_DATA_PATH="gerenciador_estudos\\assets;assets"
           else
-            # No macOS e Linux, usamos : como separador
-            ADD_DATA_PATH="${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets:assets"
+            ADD_DATA_PATH="gerenciador_estudos/assets:assets"
           fi
           
-          echo "Caminho do ícone definido como: $ICON_PATH"
-          echo "Caminho de dados definido como: $ADD_DATA_PATH"
+          echo "Script principal (relativo a 'src'): gerenciador_estudos/__main__.py"
+          echo "Caminho do ícone (relativo a 'src'): $ICON_PATH"
+          echo "Caminho de dados (relativo a 'src'): $ADD_DATA_PATH"
 
-          # Roda o PyInstaller com caminhos absolutos, que são inequívocos
-          pyinstaller "${GITHUB_WORKSPACE}/src/gerenciador_estudos/__main__.py" \
+          # Roda o PyInstaller a partir de 'src', com caminhos muito mais simples.
+          # Especificamos os diretórios de saída para que eles sejam criados na raiz do projeto (../).
+          pyinstaller gerenciador_estudos/__main__.py \
             --name "GerenciadorDeEstudos" \
+            --distpath ../dist \
+            --workpath ../build \
             --noconfirm \
             --onedir \
             --windowed \
