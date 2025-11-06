@@ -1,97 +1,68 @@
-# Nome do nosso workflow de automação
 name: Build Application
 
-# Gatilhos:
 on:
-  # 1. Aciona quando uma nova "Release" for publicada (para seus lançamentos oficiais)
   release:
     types: [published]
-  
-  # 2. Permite acionar manualmente a qualquer momento (para testes)
   workflow_dispatch: {}
 
 jobs:
   build:
-    # Nome do nosso job de build
     name: Build on ${{ matrix.os }}
-
-    # Estratégia de Matriz: Rodar este job em paralelo nos 3 sistemas operacionais
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-
-    # Define qual máquina virtual será usada para cada job da matriz
     runs-on: ${{ matrix.os }}
 
     steps:
-      # Passo 1: Baixar o código do seu repositório para a máquina virtual
+      # 1. Baixar o código-fonte
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Passo 2: Configurar o ambiente Python na máquina virtual
+      # 2. Configurar o Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11' # Usar uma versão estável do Python
+          python-version: '3.11'
 
-      # Passo 3: Instalar as dependências do projeto e a ferramenta de build (PyInstaller)
+      # 3. Instalar dependências do projeto e do build
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . # Instala seu projeto e suas dependências (PySide6, PyMuPDF)
-          pip install pyinstaller # Instala a ferramenta de empacotamento
+          pip install -e .
+          pip install pyinstaller
 
-      # Passo 4: Instalar ferramentas adicionais APENAS para o build do Linux (AppImage)
-      - name: Install Linux AppImage tools
-        if: runner.os == 'Linux'
-        run: |
-          wget -c "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage"
-          wget -c "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage"
-          chmod +x linuxdeploy-x86_64.AppImage
-          chmod +x linuxdeploy-plugin-qt-x86_64.AppImage
-          
-      # --- PASSO NOVO ---
-      # Adicionamos este passo para instalar as dependências do Qt que o linuxdeploy precisa.
-      - name: Install Qt6 dev tools for linuxdeploy
+      # 4. (Apenas Linux) Instalar ferramentas para o AppImage
+      - name: Install Linux dependencies
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y qt6-base-dev
+          wget -c "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -O linuxdeploy
+          wget -c "https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage" -O linuxdeploy-plugin-qt
+          chmod +x linuxdeploy linuxdeploy-plugin-qt
 
-      # Passo 5: Rodar o PyInstaller para criar o executável
+      # 5. Rodar o PyInstaller (Estratégia Robusta)
       - name: Run PyInstaller
         shell: bash
         run: |
-          # --- ETAPA DE DEBUG ---
-          echo "--- Debug Inicial ---"
-          echo "Diretório de trabalho inicial: $(pwd)"
-          ls -R
-          
-          # --- MUDANÇA DE ESTRATÉGIA: MUDAR PARA O DIRETÓRIO 'SRC' ---
-          echo ">>> Mudando diretório de trabalho para ./src <<<"
-          cd src
-          echo "Novo diretório de trabalho: $(pwd)"
-          echo "--- Fim do Debug ---"
-
-          # --- CONSTRUÇÃO DE CAMINHOS RELATIVOS A 'SRC' ---
+          # Define o caminho do ícone com base no SO
           if [ "$RUNNER_OS" == "macOS" ]; then
-            ICON_PATH="gerenciador_estudos/assets/icone.icns"
+            ICON="gerenciador_estudos/assets/icone.icns"
           else
-            ICON_PATH="gerenciador_estudos/assets/icone.ico"
+            ICON="gerenciador_estudos/assets/icone.ico"
           fi
-          
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            ADD_DATA_PATH="gerenciador_estudos\\assets;assets"
-          else
-            ADD_DATA_PATH="gerenciador_estudos/assets:assets"
-          fi
-          
-          echo "Script principal (relativo a 'src'): gerenciador_estudos/__main__.py"
-          echo "Caminho do ícone (relativo a 'src'): $ICON_PATH"
-          echo "Caminho de dados (relativo a 'src'): $ADD_DATA_PATH"
 
-          # Roda o PyInstaller a partir de 'src', com caminhos muito mais simples.
-          # Especificamos os diretórios de saída para que eles sejam criados na raiz do projeto (../).
+          # Define o separador para --add-data com base no SO
+          if [ "$RUNNER_OS" == "Windows" ]; then
+            SEPARATOR=";"
+          else
+            SEPARATOR=":"
+          fi
+
+          # Muda para o diretório 'src' para simplificar os caminhos
+          cd src
+
+          # Executa o PyInstaller com caminhos relativos curtos e saída direcionada
           pyinstaller gerenciador_estudos/__main__.py \
             --name "GerenciadorDeEstudos" \
             --distpath ../dist \
@@ -99,50 +70,39 @@ jobs:
             --noconfirm \
             --onedir \
             --windowed \
-            --icon "$ICON_PATH" \
-            --add-data "$ADD_DATA_PATH"
+            --icon "$ICON" \
+            --add-data "gerenciador_estudos/assets${SEPARATOR}assets"
 
-      # Passo 6: Criar o AppImage (permanece o mesmo)
+      # 6. (Apenas Linux) Criar o AppImage
       - name: Create AppImage
         if: runner.os == 'Linux'
         run: |
-          # No modo --onedir, o AppDir é o próprio diretório de saída do PyInstaller
-          ./linuxdeploy-x86_64.AppImage --appdir dist/GerenciadorDeEstudos \
+          ./linuxdeploy --appdir dist/GerenciadorDeEstudos \
             --plugin qt \
             --output appimage
-      
-      # Passo 7: Preparar os artefatos para upload (AGORA LIDANDO COM DIRETÓRIOS)
-      - name: Prepare artifacts for upload
+
+      # 7. Preparar os artefatos para upload (zipando os diretórios)
+      - name: Prepare artifacts
         shell: bash
         run: |
-          ARTIFACT_NAME=${{ github.event.repository.name }}
-          TAG_NAME=${{ github.ref_name }}
-
-          # Como estamos usando --onedir, precisamos zipar o resultado em todos os SOs
+          ARTIFACT_NAME=${{ github.event.repository.name }}-${{ github.ref_name }}
           if [ "$RUNNER_OS" == "Windows" ]; then
-            # O .exe estará dentro da pasta dist/GerenciadorDeEstudos
-            7z a -tzip "dist/${ARTIFACT_NAME}-${TAG_NAME}-windows.zip" ./dist/GerenciadorDeEstudos/
-            echo "ASSET_PATH=dist/${ARTIFACT_NAME}-${TAG_NAME}-windows.zip" >> $GITHUB_ENV
+            7z a -tzip "${ARTIFACT_NAME}-windows.zip" ./dist/GerenciadorDeEstudos/
+            echo "ASSET_PATH=${ARTIFACT_NAME}-windows.zip" >> $GITHUB_ENV
           elif [ "$RUNNER_OS" == "macOS" ]; then
-            # O .app é a própria pasta
-            7z a -tzip "dist/${ARTIFACT_NAME}-${TAG_NAME}-macos.zip" ./dist/GerenciadorDeEstudos.app/
-            echo "ASSET_PATH=dist/${ARTIFACT_NAME}-${TAG_NAME}-macos.zip" >> $GITHUB_ENV
+            7z a -tzip "${ARTIFACT_NAME}-macos.zip" ./dist/GerenciadorDeEstudos.app/
+            echo "ASSET_PATH=${ARTIFACT_NAME}-macos.zip" >> $GITHUB_ENV
           elif [ "$RUNNER_OS" == "Linux" ]; then
-            mv GerenciadorDeEstudos*.AppImage dist/${ARTIFACT_NAME}-${TAG_NAME}-linux.AppImage
-            echo "ASSET_PATH=dist/${ARTIFACT_NAME}-${TAG_NAME}-linux.AppImage" >> $GITHUB_ENV
+            mv GerenciadorDeEstudos*.AppImage "${ARTIFACT_NAME}-linux.AppImage"
+            echo "ASSET_PATH=${ARTIFACT_NAME}-linux.AppImage" >> $GITHUB_ENV
           fi
-          
-      # Passo 8: Fazer o upload do artefato final para a Release do GitHub
+
+      # 8. Fazer o upload do artefato final para a Release
       - name: Upload Release Asset
         uses: actions/upload-release-asset@v1
         with:
-          # O token é necessário para dar permissão para a Action fazer o upload
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          # URL para onde o upload será feito (pega da release que acionou o workflow)
           upload_url: ${{ github.event.release.upload_url }}
-          # Caminho do arquivo que será enviado
           asset_path: ${{ env.ASSET_PATH }}
-          # Nome que o arquivo terá na página da Release
           asset_name: ${{ env.ASSET_PATH }}
-          # Tipo do conteúdo
           asset_content_type: application/octet-stream
