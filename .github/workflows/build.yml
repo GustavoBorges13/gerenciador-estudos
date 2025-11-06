@@ -95,6 +95,7 @@ jobs:
 
       # ✨ NOVO PASSO DE VERIFICAÇÃO ✨
       - name: Verify file structure
+        shell: bash
         run: |
           echo "O diretório de trabalho atual é:"
           pwd
