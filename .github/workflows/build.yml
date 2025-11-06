@@ -59,25 +59,25 @@ jobs:
           
           # No macOS e Linux
           if [ "$RUNNER_OS" != "Windows" ]; then
-            # Usa '#' como delimitador para evitar conflito com as barras '/' do caminho
             DATAS_TUPLE="datas=[('${GITHUB_WORKSPACE}/src/gerenciador_estudos/assets', 'assets')]"
             sed -i.bak "s#datas=\\[\\]#${DATAS_TUPLE}#" GerenciadorDeEstudos.spec
             
             # Adiciona o ícone ao BUNDLE (apenas no macOS)
             if [ "$RUNNER_OS" == "macOS" ]; then
-              sed -i.bak "s#bundle_identifier=None#bundle_identifier=None, icon='${ICON_PATH}'#" GerenciadorDeEstudos.spec
+              # CORREÇÃO: Substitui 'icon=None' pelo caminho do ícone, em vez de adicionar um novo argumento
+              sed -i.bak "s#icon=None#icon='${ICON_PATH}'#" GerenciadorDeEstudos.spec
             fi
           fi
           
-          # No Windows (a sintaxe original já deve funcionar, mas podemos padronizar)
+          # No Windows
           if [ "$RUNNER_OS" == "Windows" ]; then
-            # Escapa as barras invertidas para o 'sed' e usa '#'
-            DATAS_TUPLE_WIN="datas=[('${GITHUB_WORKSPACE//\//\\\\\\\\}\\\\src\\\\gerenciador_estudos\\\\assets', 'assets')]"
+            DATAS_TUPLE_WIN="datas=\\[('${GITHUB_WORKSPACE//\//\\\\\\\\}\\\\src\\\\gerenciador_estudos\\\\assets', 'assets')\\]"
             sed -i "s#datas=\\[\\]#${DATAS_TUPLE_WIN}#" GerenciadorDeEstudos.spec
             
             # Adiciona o ícone ao EXE
             ICON_PATH_WIN="${GITHUB_WORKSPACE//\//\\\\}\\\\src\\\\gerenciador_estudos\\\\assets\\\\icone.ico"
-            sed -i "s#console=False#console=False, icon='${ICON_PATH_WIN}'#" GerenciadorDeEstudos.spec
+            # CORREÇÃO: Substitui 'icon=None' que pode existir na seção EXE
+            sed -i "s#icon=None#icon='${ICON_PATH_WIN}'#" GerenciadorDeEstudos.spec
           fi
 
           echo "--- Conteúdo do .spec modificado ---"
