@@ -50,6 +50,14 @@ jobs:
           chmod +x linuxdeploy-x86_64.AppImage
           chmod +x linuxdeploy-plugin-qt-x86_64.AppImage
           
+      # --- PASSO NOVO ---
+      # Adicionamos este passo para instalar as dependências do Qt que o linuxdeploy precisa.
+      - name: Install Qt6 dev tools for linuxdeploy
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qt6-base-dev
+
       # Passo 5: Rodar o PyInstaller para criar o executável
       - name: Run PyInstaller
         shell: bash # Usar bash em todos os SOs para consistência
@@ -67,10 +75,9 @@ jobs:
             --noconfirm \
             --onedir \
             --windowed \
-            --icon "$ICON_PATH" \
-            --add-data "src/assets:assets"
+            --icon "$ICON_PATH"
 
-      # Passo 6: Criar o AppImage APENAS para o build do Linux
+      # Passo 6: Criar o AppImage (permanece o mesmo)
       - name: Create AppImage
         if: runner.os == 'Linux'
         run: |
