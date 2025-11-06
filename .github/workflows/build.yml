@@ -117,10 +117,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # ✅ Este checkout é suficiente. Ele prepara o ambiente.
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # ✅ Necessário para o gh release funcionar
+          fetch-depth: 0 # Necessário para o gh release --generate-notes
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -130,24 +131,22 @@ jobs:
       - name: Generate release notes with hashes
         id: generate_notes
         run: |
+          # (seu script de geração de notas continua igual)
           echo "## Artefatos da Compilação" > release_notes.md
           echo "" >> release_notes.md
           echo "| Arquivo | SHA256 Hash |" >> release_notes.md
           echo "|---------|-------------|" >> release_notes.md
-
           for dir in artifacts/*/; do
             file=$(find "$dir" -type f)
             filename=$(basename "$file")
             hash=$(sha256sum "$file" | awk '{print $1}')
             echo "| \`$filename\` | \`$hash\` |" >> release_notes.md
           done
-
           echo ""
           echo "Release notes geradas:"
           cat release_notes.md
 
-      - name: Checkout repository (para o gh funcionar)
-        uses: actions/checkout@v4
+      # ❌ REMOVA O CHECKOUT QUE ESTAVA AQUI ❌
 
       - name: Create Release and Upload Assets
         env:
@@ -155,12 +154,13 @@ jobs:
           VERSION: ${{ needs.check.outputs.version }}
         run: |
           echo "📦 Uploading files to release v$VERSION..."
-          ls -lh artifacts/*/*
+          # Lista os arquivos para ter certeza que eles existem
+          ls -lR artifacts
 
+          # O comando 'find' é mais robusto para pegar todos os arquivos
           gh release create "v$VERSION" \
-            --repo GustavoBorges13/gerenciador-estudos \
             --title "Release v$VERSION" \
             --notes-file release_notes.md \
             --generate-notes \
             $(find artifacts -type f)
-
+            
