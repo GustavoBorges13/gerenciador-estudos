@@ -1,28 +1,73 @@
-name: Build cross-platform executables
+name: Build and Release
 
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
+# Permissões necessárias para que a Action possa criar uma release e tags.
+permissions:
+  contents: write
+
 jobs:
+  # Job 1: Verifica a versão no pyproject.toml e se a tag já existe
+  check:
+    name: Check for new version
+    runs-on: ubuntu-latest
+    outputs:
+      new_version: ${{ steps.check_tag.outputs.new_version }}
+      version: ${{ steps.get_version.outputs.version }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install toml-cli to read pyproject.toml
+        run: pip install toml-cli
+
+      - name: Get version from pyproject.toml
+        id: get_version
+        run: |
+          # Extrai a versão e a armazena em uma variável de ambiente para o próximo passo
+          VERSION=$(toml get --toml-path pyproject.toml project.version)
+          echo "Project version: $VERSION"
+          # Expõe a versão como um output do passo
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check if tag for version already exists
+        id: check_tag
+        env:
+          # A versão vem do passo anterior
+          VERSION: ${{ steps.get_version.outputs.version }}
+        run: |
+          # Verifica no repositório remoto se a tag v<VERSAO> existe
+          if git ls-remote --tags origin | grep -q "refs/tags/v$VERSION"; then
+            echo "Tag v$VERSION already exists. Nothing to do."
+            echo "new_version=false" >> $GITHUB_OUTPUT
+          else
+            echo "Tag v$VERSION does not exist. Proceeding to build and release."
+            echo "new_version=true" >> $GITHUB_OUTPUT
+          fi
+
+  # Job 2: Compila os executáveis para cada plataforma (só roda se for uma nova versão)
   build:
     name: Build for ${{ matrix.os }}
+    # Depende do job 'check' e só roda se 'new_version' for 'true'
+    needs: check
+    if: needs.check.outputs.new_version == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-latest
             artifact_name: gerenciador_estudos-linux
-            exe_suffix: ""
+            exe_name: gerenciador_estudos
           - os: windows-latest
             artifact_name: gerenciador_estudos-win
-            exe_suffix: ".exe"
+            exe_name: gerenciador_estudos.exe
           - os: macos-latest
             artifact_name: gerenciador_estudos-macos
-            exe_suffix: ""
+            exe_name: gerenciador_estudos
 
     steps:
       - name: Checkout repository
@@ -31,25 +76,76 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.11" # Usando 3.11 por ser mais estável que a 3.13 no momento para PyInstaller
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install pyinstaller pillow  # 👈 Pillow converte o ícone automaticamente
+          pip install pyinstaller pillow
 
       - name: Build executable with PyInstaller
         shell: bash
         run: |
           pyinstaller src/gerenciador_estudos/__main__.py \
-            --name gerenciador_estudos${{ matrix.exe_suffix }} \
+            --name ${{ matrix.exe_name }} \
             --onefile \
             --noconsole \
-            --icon src/assets/icone.ico  # usa o mesmo ícone pra todos
+            --add-data "src/gerenciador_estudos/assets/icone.ico:assets" \
+            --icon src/assets/icone.ico
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: dist/gerenciador_estudos${{ matrix.exe_suffix }}
+          path: dist/${{ matrix.exe_name }}
+
+  # Job 3: Cria a release no GitHub (só roda se a compilação for bem-sucedida)
+  release:
+    name: Create GitHub Release
+    # Depende do job 'build' e, por consequência, do 'check'
+    needs: [check, build]
+    if: needs.check.outputs.new_version == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          # Baixa todos os artefatos para um diretório chamado 'artifacts'
+          path: artifacts
+
+      - name: Generate release notes with hashes
+        id: generate_notes
+        run: |
+          echo "## Artefatos da Compilação" > release_notes.md
+          echo "" >> release_notes.md
+          echo "| Arquivo | SHA256 Hash |" >> release_notes.md
+          echo "|---------|-------------|" >> release_notes.md
+
+          # Itera sobre cada diretório de artefato baixado
+          for dir in artifacts/*/; do
+            # Pega o nome do arquivo dentro do diretório
+            file=$(find "$dir" -type f)
+            filename=$(basename "$file")
+            # Calcula o hash e formata a linha da tabela
+            hash=$(sha256sum "$file" | awk '{print $1}')
+            echo "| \`$filename\` | \`$hash\` |" >> release_notes.md
+          done
+
+          echo ""
+          echo "Release notes geradas:"
+          cat release_notes.md
+
+      - name: Create Release and Upload Assets
+        env:
+          # O token é fornecido automaticamente pelo GitHub
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A versão vem do output do job 'check'
+          VERSION: ${{ needs.check.outputs.version }}
+        run: |
+          gh release create "v$VERSION" \
+            --title "Release v$VERSION" \
+            --notes-file release_notes.md \
+            --generate-notes \
+            artifacts/*/*
