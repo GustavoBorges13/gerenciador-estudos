@@ -52,42 +52,49 @@ jobs:
           
       # Passo 5: Rodar o PyInstaller para criar o executável
       - name: Run PyInstaller
-        shell: bash #
+        shell: bash # Usar bash em todos os SOs para consistência
         run: |
+          # Define o ícone a ser usado com base no sistema operacional
+          if [ "$RUNNER_OS" == "macOS" ]; then
+            ICON_PATH="src/gerenciador_estudos/assets/icone.icns"
+          else
+            ICON_PATH="src/gerenciador_estudos/assets/icone.ico"
+          fi
+          
+          # Roda o PyInstaller com --onedir (mais robusto) e o ícone correto
           pyinstaller src/gerenciador_estudos/__main__.py \
             --name "GerenciadorDeEstudos" \
-            --onefile \
+            --noconfirm \
+            --onedir \
             --windowed \
-            --icon "src/gerenciador_estudos/assets/icone.ico"
+            --icon "$ICON_PATH"
 
       # Passo 6: Criar o AppImage APENAS para o build do Linux
       - name: Create AppImage
         if: runner.os == 'Linux'
         run: |
-          export QT_QPA_PLATFORMTHEME=qt6ct # Ajuda o plugin a encontrar o tema correto
+          # No modo --onedir, o AppDir é o próprio diretório de saída do PyInstaller
           ./linuxdeploy-x86_64.AppImage --appdir dist/GerenciadorDeEstudos \
             --plugin qt \
             --output appimage
       
-      # Passo 7: Preparar os artefatos para upload (renomear e zipar o .app do macOS)
+      # Passo 7: Preparar os artefatos para upload (AGORA LIDANDO COM DIRETÓRIOS)
       - name: Prepare artifacts for upload
         shell: bash
         run: |
-          # Define o nome base do artefato usando o nome do repositório
           ARTIFACT_NAME=${{ github.event.repository.name }}
-          # Pega o nome da tag da release (ex: v1.0.0)
           TAG_NAME=${{ github.ref_name }}
 
-          # Renomeia os artefatos para incluir o SO e a versão
+          # Como estamos usando --onedir, precisamos zipar o resultado em todos os SOs
           if [ "$RUNNER_OS" == "Windows" ]; then
-            mv dist/GerenciadorDeEstudos.exe dist/${ARTIFACT_NAME}-${TAG_NAME}-windows.exe
-            echo "ASSET_PATH=dist/${ARTIFACT_NAME}-${TAG_NAME}-windows.exe" >> $GITHUB_ENV
+            # O .exe estará dentro da pasta dist/GerenciadorDeEstudos
+            7z a -tzip "dist/${ARTIFACT_NAME}-${TAG_NAME}-windows.zip" ./dist/GerenciadorDeEstudos/
+            echo "ASSET_PATH=dist/${ARTIFACT_NAME}-${TAG_NAME}-windows.zip" >> $GITHUB_ENV
           elif [ "$RUNNER_OS" == "macOS" ]; then
-            # O .app é um diretório, então precisamos zipá-lo
-            zip -r dist/${ARTIFACT_NAME}-${TAG_NAME}-macos.zip dist/GerenciadorDeEstudos.app
+            # O .app é a própria pasta
+            7z a -tzip "dist/${ARTIFACT_NAME}-${TAG_NAME}-macos.zip" ./dist/GerenciadorDeEstudos.app/
             echo "ASSET_PATH=dist/${ARTIFACT_NAME}-${TAG_NAME}-macos.zip" >> $GITHUB_ENV
           elif [ "$RUNNER_OS" == "Linux" ]; then
-            # O AppImage já tem um nome longo, vamos padronizá-lo
             mv GerenciadorDeEstudos*.AppImage dist/${ARTIFACT_NAME}-${TAG_NAME}-linux.AppImage
             echo "ASSET_PATH=dist/${ARTIFACT_NAME}-${TAG_NAME}-linux.AppImage" >> $GITHUB_ENV
           fi
