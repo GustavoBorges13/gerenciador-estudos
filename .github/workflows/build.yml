@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  packages: write
+  issues: read
 
 jobs:
   # Job 1: Verifica a versão e se a tag já existe
@@ -150,6 +152,7 @@ jobs:
           VERSION: ${{ needs.check.outputs.version }}
         run: |
           gh release create "v$VERSION" \
+            --repo ${{ github.repository }} \
             --title "Release v$VERSION" \
             --notes-file release_notes.md \
             --generate-notes \
