@@ -48,6 +48,7 @@ jobs:
           
       # Passo 5: Rodar o PyInstaller para criar o executável
       - name: Run PyInstaller
+        shell: bash #
         run: |
           pyinstaller src/gerenciador_estudos/__main__.py \
             --name "GerenciadorDeEstudos" \
