@@ -68,7 +68,7 @@ jobs:
             --onedir \
             --windowed \
             --icon "$ICON_PATH" \
-            --add-data "src/gerenciador_estudos/assets:assets"
+            --add-data "src/assets:assets"
 
       # Passo 6: Criar o AppImage APENAS para o build do Linux
       - name: Create AppImage
